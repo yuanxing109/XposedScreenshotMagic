@@ -20,7 +20,7 @@ class ModuleMain : XposedModule() {
         logStage(
             priority = Log.INFO,
             stage = "module",
-            message = "Loaded ${param.processName}, framework=$frameworkName($frameworkVersionCode), api=$apiVersion",
+            message = "已加载 ${param.processName}, 框架=$frameworkName($frameworkVersionCode), api=$apiVersion",
         )
     }
 
@@ -32,19 +32,19 @@ class ModuleMain : XposedModule() {
 
         val classLoader = param.classLoader
         val handles = prepareReflectionHandles(classLoader).getOrElse { error ->
-            logStage(Log.ERROR, "bootstrap", "Unable to prepare SurfaceControl reflection", error)
+            logStage(Log.ERROR, "bootstrap", "无法准备SurfaceControl反射", error)
             return
         }
         val animatorClass = runCatching {
             Class.forName(WINDOW_STATE_ANIMATOR, false, classLoader)
         }.getOrElse { error ->
-            logStage(Log.ERROR, "bootstrap", "Unable to load $WINDOW_STATE_ANIMATOR", error)
+            logStage(Log.ERROR, "bootstrap", "无法加载 $WINDOW_STATE_ANIMATOR", error)
             return
         }
 
         val hookTargets = resolveHookTargets(animatorClass)
         if (hookTargets.isEmpty()) {
-            logStage(Log.WARN, "bootstrap", "No suitable $WINDOW_STATE_ANIMATOR.$CREATE_SURFACE_LOCKED methods found")
+            logStage(Log.WARN, "bootstrap", "未找到合适的 $WINDOW_STATE_ANIMATOR.$CREATE_SURFACE_LOCKED 方法")
             return
         }
 
@@ -62,18 +62,18 @@ class ModuleMain : XposedModule() {
         logStage(
             priority = Log.INFO,
             stage = "bootstrap",
-            message = "Hooked ${hookTargets.size} $WINDOW_STATE_ANIMATOR.$CREATE_SURFACE_LOCKED method(s)",
+            message = "已Hook ${hookTargets.size} 个 $WINDOW_STATE_ANIMATOR.$CREATE_SURFACE_LOCKED 方法",
         )
     }
 
     private fun isSupportedPlatform(): Boolean {
         if (Build.VERSION.SDK_INT <= 34) {
-            logStage(Log.INFO, "bootstrap", "Android 15+ required, sdk=${Build.VERSION.SDK_INT}")
+            logStage(Log.INFO, "bootstrap", "需要Android 15+, 当前sdk=${Build.VERSION.SDK_INT}")
             return false
         }
 
         if (readMiOsVersionName().isEmpty()) {
-            logStage(Log.INFO, "bootstrap", "HyperOS property ro.mi.os.version.name is missing")
+            logStage(Log.INFO, "bootstrap", "缺少HyperOS属性 ro.mi.os.version.name")
             return false
         }
 
@@ -117,7 +117,7 @@ class ModuleMain : XposedModule() {
             logStage(
                 priority = Log.WARN,
                 stage = "bootstrap",
-                message = "Strict hook filter found no matches, fallback candidate count=${baseCandidates.size}",
+                message = "严格的hook过滤器未找到匹配项，回退候选数量=${baseCandidates.size}",
             )
         }
         return baseCandidates
@@ -143,7 +143,7 @@ class ModuleMain : XposedModule() {
                 logStage(
                     priority = Log.INFO,
                     stage = "inspect",
-                    message = "Title=[${snapshot.title}] Package=[${snapshot.packageName}] Type=[${snapshot.type}] Mode=[${snapshot.windowingMode}]",
+                    message = "标题=[${snapshot.title}] 包名=[${snapshot.packageName}] 类型=[${snapshot.type}] 模式=[${snapshot.windowingMode}]",
                 )
 
                 val decision = decideHide(snapshot)
@@ -151,7 +151,7 @@ class ModuleMain : XposedModule() {
                 logStage(
                     priority = Log.INFO,
                     stage = "decision",
-                    message = "Hide title=[${snapshot.title}] package=[${snapshot.packageName}] reason=${reason.code} hideTask=${decision.hideTaskSurface}",
+                    message = "隐藏 标题=[${snapshot.title}] 包名=[${snapshot.packageName}] 原因=${reason.code} hideTask=${decision.hideTaskSurface}",
                 )
 
                 applyHide(snapshot, decision, handles)
@@ -227,12 +227,12 @@ class ModuleMain : XposedModule() {
             is MethodCallResult.Value -> result.value as? Int ?: 0
             is MethodCallResult.NullValue -> 0
             is MethodCallResult.Missing -> {
-                logStage(Log.WARN, "inspect", "${result.ownerClass}.${result.methodName}() is missing, defaulting mode=0")
+                logStage(Log.WARN, "inspect", "${result.ownerClass}.${result.methodName}() 不存在，默认模式=0")
                 0
             }
 
             is MethodCallResult.Failure -> {
-                logStage(Log.WARN, "inspect", "${result.ownerClass}.${result.methodName}() failed, defaulting mode=0", result.throwable)
+                logStage(Log.WARN, "inspect", "${result.ownerClass}.${result.methodName}() 失败，默认模式=0", result.throwable)
                 0
             }
         }
@@ -272,7 +272,7 @@ class ModuleMain : XposedModule() {
                 logStage(
                     priority = Log.INFO,
                     stage = "apply-window",
-                    message = "Applied SKIP_SCREENSHOT (0x40) to [${snapshot.title}] (${snapshot.packageName})",
+                    message = "已应用SKIP_SCREENSHOT (0x40) 到 [${snapshot.title}] (${snapshot.packageName})",
                 )
             }
 
@@ -280,7 +280,7 @@ class ModuleMain : XposedModule() {
                 logStage(
                     priority = Log.ERROR,
                     stage = "apply-window",
-                    message = "${result.operation} failed for [${snapshot.title}] (${snapshot.packageName})",
+                    message = "${result.operation} 失败 for [${snapshot.title}] (${snapshot.packageName})",
                     throwable = result.throwable,
                 )
             }
@@ -297,7 +297,7 @@ class ModuleMain : XposedModule() {
                     logStage(
                         priority = Log.INFO,
                         stage = "apply-task",
-                        message = "Applied SKIP_SCREENSHOT to Task of [${snapshot.title}]",
+                        message = "已应用SKIP_SCREENSHOT 到 [${snapshot.title}] 的Task",
                     )
                 }
 
@@ -305,7 +305,7 @@ class ModuleMain : XposedModule() {
                     logStage(
                         priority = Log.WARN,
                         stage = "apply-task",
-                        message = "${result.operation} failed for Task of [${snapshot.title}]",
+                        message = "${result.operation} 失败 for [${snapshot.title}] 的Task",
                         throwable = result.throwable,
                     )
                 }
@@ -315,7 +315,7 @@ class ModuleMain : XposedModule() {
 
         when (val taskSurfaceState = snapshot.taskSurfaceState) {
             TaskSurfaceReadResult.NotRequested -> {
-                logStage(Log.WARN, "apply-task", "Task surface was not requested for [${snapshot.title}]")
+                logStage(Log.WARN, "apply-task", "未请求 [${snapshot.title}] 的Task surface")
             }
 
             is TaskSurfaceReadResult.Missing -> {
@@ -407,7 +407,7 @@ class ModuleMain : XposedModule() {
         runCatching {
             handles.closeMethod.invoke(transaction)
         }.onFailure { error ->
-            logStage(Log.WARN, "apply-window", "close failed after primary failure", unwrapReflectionError(error))
+            logStage(Log.WARN, "apply-window", "主要失败后close失败", unwrapReflectionError(error))
         }
         return result
     }
