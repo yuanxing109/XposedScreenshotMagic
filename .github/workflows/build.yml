@@ -27,17 +27,28 @@ jobs:
     - name: Decode keystore
       if: github.event_name != 'pull_request'
       run: |
+        set +x
         echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
+        set -x
+      shell: bash
 
     - name: Build with Gradle
       run: |
         chmod +x ./gradlew
         ./gradlew assembleRelease
+      env:
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
 
     - name: Sign APK
       if: github.event_name != 'pull_request'
       run: |
         ./gradlew signReleaseBundle
+      env:
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
@@ -52,3 +63,11 @@ jobs:
         files: app/build/outputs/apk/release/*.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Clean up keystore
+      if: github.event_name != 'pull_request'
+      run: |
+        set +x
+        rm -f app/keystore.jks
+        set -x
+      shell: bash
