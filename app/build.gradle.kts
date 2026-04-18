@@ -14,6 +14,15 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("keystore.jks")
+            storePassword = System.getenv("STORE_PASSWORD") ?: throw GradleException("STORE_PASSWORD环境变量未设置")
+            keyAlias = System.getenv("KEY_ALIAS") ?: throw GradleException("KEY_ALIAS环境变量未设置")
+            keyPassword = System.getenv("KEY_PASSWORD") ?: throw GradleException("KEY_PASSWORD环境变量未设置")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -22,6 +31,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
