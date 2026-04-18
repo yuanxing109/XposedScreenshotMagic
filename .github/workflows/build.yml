@@ -12,6 +12,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write    # 关键修复：赋予写入 Release 的权限
+      pull-requests: read
 
     steps:
     - name: 检出代码
@@ -45,14 +48,14 @@ jobs:
       with:
         name: XposedShot-signed
         path: app/build/outputs/apk/release/*.apk
-        retention-days: 30   # 保留30天
+        retention-days: 30
 
     - name: 上传到 Release
       if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
         files: app/build/outputs/apk/release/*.apk
-        generate_release_notes: true   # 自动生成 Release 说明
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
