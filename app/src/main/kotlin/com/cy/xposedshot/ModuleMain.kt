@@ -1,6 +1,7 @@
 package com.cy.xposedshot
 
 import android.annotation.SuppressLint
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.util.Log
 import android.view.WindowManager
@@ -13,8 +14,13 @@ import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 
 class ModuleMain : XposedModule() {
+    // 反射查找结果会在系统进程内重复使用，缓存后可以减少窗口频繁创建时的查找成本。
     private val fieldCache = ConcurrentHashMap<String, Field>()
     private val zeroArgMethodCache = ConcurrentHashMap<String, Method>()
+    // debug/release 状态来自模块自身 APK，注入到 system_server 后依然保持一致。
+    private val debugLoggingEnabled by lazy(LazyThreadSafetyMode.NONE) {
+        (moduleApplicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
 
     override fun onModuleLoaded(param: XposedModuleInterface.ModuleLoadedParam) {
         logStage(
@@ -26,11 +32,13 @@ class ModuleMain : XposedModule() {
 
     @SuppressLint("PrivateApi")
     override fun onSystemServerStarting(param: XposedModuleInterface.SystemServerStartingParam) {
+        // 模块只在 Android 15+ 的 HyperOS 上启用，其余平台直接退出初始化流程。
         if (!isSupportedPlatform()) {
             return
         }
 
         val classLoader = param.classLoader
+        // SurfaceControl 相关反射句柄在启动阶段准备一次，运行期直接复用。
         val handles = prepareReflectionHandles(classLoader).getOrElse { error ->
             logStage(Log.ERROR, "bootstrap", "无法准备SurfaceControl反射", error)
             return
@@ -51,6 +59,7 @@ class ModuleMain : XposedModule() {
         hookTargets.forEach { method ->
             method.isAccessible = true
             hook(method).intercept { chain ->
+                // 先执行系统原始逻辑，再对已经创建完成的 Surface 补打跳过截图标记。
                 chain.proceed().also {
                     chain.thisObject?.let { animator ->
                         applySkipScreenshot(animator, handles)
@@ -80,6 +89,7 @@ class ModuleMain : XposedModule() {
         return true
     }
 
+    // 构建 Transaction 反射句柄，后续只保留 Method/Constructor 调用，避免重复查找。
     private fun prepareReflectionHandles(classLoader: ClassLoader): Result<ReflectionHandles> =
         runCatching {
             val surfaceControlClass = Class.forName(SURFACE_CONTROL, false, classLoader)
@@ -101,6 +111,7 @@ class ModuleMain : XposedModule() {
             )
         }
 
+    // HyperOS ROM 版本差异可能带来重载变化，这里先按严格条件筛选，再回退到同名候选。
     private fun resolveHookTargets(animatorClass: Class<*>): List<Method> {
         val baseCandidates = animatorClass.declaredMethods.filter { method ->
             method.declaringClass == animatorClass &&
@@ -127,6 +138,7 @@ class ModuleMain : XposedModule() {
         method.parameterCount == 0 &&
             (method.returnType == Void.TYPE || method.returnType == Boolean::class.javaPrimitiveType)
 
+    // 读取当前窗口快照，命中隐藏规则时把截图跳过标记写回 Surface。
     private fun applySkipScreenshot(animator: Any, handles: ReflectionHandles) {
         when (val snapshotResult = readWindowSnapshot(animator)) {
             is SnapshotReadResult.Skipped -> {
@@ -159,6 +171,7 @@ class ModuleMain : XposedModule() {
         }
     }
 
+    // 统一收集窗口标题、归属包名、类型、模式和 Surface 句柄，供后续决策复用。
     private fun readWindowSnapshot(animator: Any): SnapshotReadResult {
         val windowState = when (val result = readObjectField(animator, "mWin")) {
             is FieldReadResult.Value -> result.value
@@ -222,6 +235,7 @@ class ModuleMain : XposedModule() {
         )
     }
 
+    // 窗口模式读取失败时直接回退到普通模式，隐藏逻辑继续执行。
     private fun readWindowingMode(windowState: Any): Int =
         when (val result = invokeZeroArg(windowState, "getWindowingMode")) {
             is MethodCallResult.Value -> result.value as? Int ?: 0
@@ -237,6 +251,7 @@ class ModuleMain : XposedModule() {
             }
         }
 
+    // 规则按命中优先级排列：输入法、截图浮层、安全中心浮窗、自由窗和 PiP。
     private fun decideHide(snapshot: WindowSnapshot): HideDecision {
         val hideTaskSurface = snapshot.windowingMode == WINDOWING_MODE_FREEFORM ||
             snapshot.windowingMode == WINDOWING_MODE_PINNED
@@ -262,6 +277,7 @@ class ModuleMain : XposedModule() {
         return HideDecision(reason = reason, hideTaskSurface = hideTaskSurface)
     }
 
+    // 对窗口 Surface 打标；自由窗和 PiP 还要同步处理 Task Surface，避免父层内容被截到。
     private fun applyHide(
         snapshot: WindowSnapshot,
         decision: HideDecision,
@@ -330,6 +346,7 @@ class ModuleMain : XposedModule() {
         }
     }
 
+    // 不同 ROM 版本可能把 Surface 挂在 WindowState 或 Animator 上，这里按稳定性顺序尝试。
     private fun readWindowSurface(windowState: Any, animator: Any): FieldReadResult<Any> {
         val windowStateSurface = readObjectField(windowState, "mSurfaceControl")
         if (windowStateSurface is FieldReadResult.Value) {
@@ -344,6 +361,7 @@ class ModuleMain : XposedModule() {
         return pickPreferredFieldResult(windowStateSurface, animatorSurface)
     }
 
+    // 只有自由窗和 PiP 需要继续向上拿到 Task Surface，普通全屏窗口直接跳过这一步。
     private fun readTaskSurface(windowState: Any, title: String, windowingMode: Int): TaskSurfaceReadResult {
         if (windowingMode != WINDOWING_MODE_FREEFORM && windowingMode != WINDOWING_MODE_PINNED) {
             return TaskSurfaceReadResult.NotRequested
@@ -375,6 +393,7 @@ class ModuleMain : XposedModule() {
         }
     }
 
+    // 每次打标使用一笔独立 Transaction，成功和失败都显式 close，避免句柄泄漏。
     private fun applySkipScreenshotFlag(surfaceControl: Any, handles: ReflectionHandles): ApplyResult {
         val transaction = runCatching {
             handles.transactionConstructor.newInstance()
@@ -412,6 +431,7 @@ class ModuleMain : XposedModule() {
         return result
     }
 
+    // 反射读字段统一走这里，返回结构化结果方便上层决定继续、跳过或记录日志。
     private fun readObjectField(target: Any, name: String): FieldReadResult<Any> =
         when (val lookup = findField(target.javaClass, name)) {
             is LookupResult.Value -> {
@@ -435,6 +455,7 @@ class ModuleMain : XposedModule() {
             is LookupResult.Failure -> FieldReadResult.Failure(lookup.ownerClass, lookup.memberName, lookup.throwable)
         }
 
+    // type 字段属于高频读取字段，单独保留 Int 读取分支避免额外装箱判断。
     private fun readLayoutType(layoutParams: Any): FieldReadResult<Int> =
         when (val lookup = findField(layoutParams.javaClass, "type")) {
             is LookupResult.Value -> {
@@ -475,6 +496,7 @@ class ModuleMain : XposedModule() {
             is LookupResult.Failure -> MethodCallResult.Failure(lookup.ownerClass, lookup.memberName, lookup.throwable)
         }
 
+    // 字段查找会沿继承链向上走，命中后缓存到具体起始类名，后续直接复用。
     private fun findField(startClass: Class<*>, name: String): LookupResult<Field> {
         val cacheKey = "${startClass.name}#$name"
         fieldCache[cacheKey]?.let { return LookupResult.Value(it) }
@@ -503,6 +525,7 @@ class ModuleMain : XposedModule() {
         return LookupResult.Missing(startClass.name, name)
     }
 
+    // 只缓存零参数方法，覆盖当前模块的全部调用场景，也能降低缓存规模。
     private fun findZeroArgMethod(startClass: Class<*>, name: String): LookupResult<Method> {
         val cacheKey = "${startClass.name}#$name()"
         zeroArgMethodCache[cacheKey]?.let { return LookupResult.Value(it) }
@@ -530,6 +553,7 @@ class ModuleMain : XposedModule() {
             is LookupResult.Failure -> throw lookup.throwable
         }
 
+    // 优先返回最早暴露出的异常或缺失信息，便于日志反映真实失败点。
     private fun pickPreferredFieldResult(
         primary: FieldReadResult<Any>,
         fallback: FieldReadResult<Any>,
@@ -559,12 +583,17 @@ class ModuleMain : XposedModule() {
             throwable
         }
 
+    // 日志统一通过这一层输出，debug 包保留诊断信息，release 包保持静默。
     private fun logStage(
         priority: Int,
         stage: String,
         message: String,
         throwable: Throwable? = null,
     ) {
+        if (!debugLoggingEnabled) {
+            return
+        }
+
         val formatted = "[$stage] $message"
         if (throwable == null) {
             super.log(priority, TAG, formatted)
@@ -574,6 +603,7 @@ class ModuleMain : XposedModule() {
     }
 
     @SuppressLint("PrivateApi", "SoonBlockedPrivateApi")
+    // HyperOS 设备通过系统属性判断，属性为空时视为当前 ROM 不在支持范围内。
     private fun readMiOsVersionName(): String =
         runCatching {
             val systemPropertiesClass = Class.forName("android.os.SystemProperties")
