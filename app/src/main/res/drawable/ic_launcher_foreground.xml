@@ -1,0 +1,26 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 屏幕框：截图 / 录屏的隐喻 -->
+    <path
+        android:pathData="M38,35 h32 a9,9 0 0 1 9,9 v22 a9,9 0 0 1 -9,9 h-32 a9,9 0 0 1 -9,-9 v-22 a9,9 0 0 1 9,-9 z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineJoin="round" />
+
+    <!-- 先用背景色开缺口，再压一道白杠，做成「禁止」符号 -->
+    <path
+        android:pathData="M38,78 L72,30"
+        android:strokeColor="#FF1C1B2E"
+        android:strokeWidth="13"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M38,78 L72,30"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+</vector>

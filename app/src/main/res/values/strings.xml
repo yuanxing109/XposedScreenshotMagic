@@ -1,4 +1,35 @@
 <resources>
-    <string name="app_name">XposedScreenshotMagic</string>
-    <string name="module_description">Hide specific windows from screenshots and screen recordings on HyperOS Android 15+</string>
+    <string name="app_name">HideShot</string>
+    <string name="module_description">截图、录屏、投屏时隐藏输入法、悬浮窗、画中画、小窗与安全中心浮层。可按应用放行。仅支持 HyperOS 4。</string>
+
+    <string name="ui_subtitle">截图、录屏、投屏时自动隐藏系统浮层</string>
+    <string name="rule_item_ime">输入法</string>
+    <string name="rule_item_overlay">应用悬浮窗</string>
+    <string name="rule_item_pip">画中画</string>
+    <string name="rule_item_freeform">悬浮小窗</string>
+    <string name="rule_item_security">安全中心侧边栏与浮层</string>
+    <string name="rule_item_screenshot">截图动画层、缩略图与编辑器</string>
+    <string name="ui_summary_none">当前没有放行的应用，规则全部生效。</string>
+    <string name="ui_summary_count">已放行 %1$d 个应用。</string>
+    <string name="ui_permission_needed">实时同步未授权：改开关后要重启才生效。执行一次 `adb shell pm grant com.cy.xposedshot android.permission.WRITE_SECURE_SETTINGS`（或 root 下同命令）即可即时生效。</string>
+    <string name="ui_pick">选择放行的应用</string>
+    <string name="ui_note">系统级窗口（输入法、安全中心、截图编辑器）不受名单影响，始终隐藏。改动即时生效，不需要重启。</string>
+
+    <string name="picker_title">放行名单</string>
+    <string name="picker_search">搜索应用名或包名</string>
+    <string name="picker_show_system">显示系统应用</string>
+    <string name="picker_empty">没有匹配的应用</string>
+    <string name="section_allowed">已放行</string>
+    <string name="section_system">系统与预装应用</string>
+    <string name="section_user">其他应用</string>
+    <string name="picker_count_user">共 %1$d 个应用</string>
+    <string name="picker_count_all">共 %1$d 个应用，其中系统应用 %2$d 个</string>
+    <string name="row_status_default">默认隐藏</string>
+    <string name="sheet_hint">打开表示放行：这类窗口不再从截图里消失。</string>
+    <string name="rule_free_win_desc">从最近任务拖出来的自由小窗</string>
+    <string name="rule_overlay_desc">用悬浮窗权限挂出来的窗口</string>
+    <string name="rule_pip_desc">视频缩到角落的那个小方块</string>
+    <string name="rule_free_win">小窗</string>
+    <string name="rule_overlay">悬浮窗</string>
+    <string name="rule_pip">画中画</string>
 </resources>
