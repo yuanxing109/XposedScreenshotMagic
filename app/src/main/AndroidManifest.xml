@@ -1,14 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- 名单页需要列出全部已安装应用 -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- 兜底通道：把配置写进 Settings.Global（主通道是 LSPosed Remote Preferences，不需要权限） -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+
     <application
+        android:name=".HideShotApp"
         android:allowBackup="false"
-        android:dataExtractionRules="@xml/data_extraction_rules"
         android:description="@string/module_description"
-        android:fullBackupContent="@xml/backup_rules"
-        android:icon="@android:drawable/sym_def_app_icon"
+        android:hasCode="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault" />
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.AppPickerActivity"
+            android:exported="false"
+            android:label="@string/picker_title" />
+
+        <!-- 只读配置通道：仅 UID 1000 与自身可读，见 ConfigProvider -->
+        <provider
+            android:name=".config.ConfigProvider"
+            android:authorities="com.cy.xposedshot.config"
+            android:exported="true"
+            android:grantUriPermissions="false" />
+
+    </application>
 
 </manifest>

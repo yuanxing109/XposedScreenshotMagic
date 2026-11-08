@@ -10,8 +10,8 @@ android {
         applicationId = "com.cy.xposedshot"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 23
+        versionName = "1.8.2"
     }
 
     signingConfigs {
@@ -55,10 +55,17 @@ android {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
 dependencies {
     compileOnly(libs.xposed.api)
+
+    // Remote Preferences：配置由框架 daemon 直接推到 system_server
+    implementation(libs.xposed.service)
+
+    // 设置页用 Material 3（含 RecyclerView / AppCompat 传递依赖）
+    implementation(libs.material)
+    implementation(libs.androidx.appcompat)
 }

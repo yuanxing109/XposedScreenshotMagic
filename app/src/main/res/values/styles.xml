@@ -1,0 +1,4 @@
+<resources>
+    <!-- Material 3 + 动态取色（运行时 DynamicColors 套用），无 ActionBar，标题自己画 -->
+    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar" />
+</resources>
